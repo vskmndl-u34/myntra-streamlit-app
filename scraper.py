@@ -72,5 +72,6 @@ def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
     input_df["Number of Ratings"] = num_ratings
     input_df["Number of Reviews"] = num_reviews
 
-return input_df.drop(columns=["Myntra_url"])
+    return input_df.drop(columns=["Myntra_url"])
+
 
