@@ -5,6 +5,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from tqdm import tqdm
 
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=chrome_options)
+
+
 def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
 
     base_url = "https://www.myntra.com/"
@@ -66,3 +73,4 @@ def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
     input_df["Number of Reviews"] = num_reviews
 
 return input_df.drop(columns=["Myntra_url"])
+
