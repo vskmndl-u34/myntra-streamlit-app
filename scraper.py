@@ -1,52 +1,49 @@
 import pandas as pd
 import requests
 import time
-from bs4 import BeautifulSoup
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "application/json"
 }
 
 def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
 
-    base_url = "https://www.myntra.com/"
     df = input_df.copy()
-    df["Myntra_url"] = base_url + df["Myntra ID"].astype(str)
 
-    names, ratings, num_ratings, num_reviews = [], [], [], []
+    names = []
+    ratings = []
+    rating_counts = []
+    review_counts = []
 
-    for url in df["Myntra_url"]:
+    for pid in df["Myntra ID"]:
         try:
-            response = requests.get(url, headers=HEADERS, timeout=20)
-            soup = BeautifulSoup(response.text, "html.parser")
+            url = f"https://www.myntra.com/gateway/v2/product/{pid}"
+            res = requests.get(url, headers=HEADERS, timeout=20)
 
-            # Product Name
-            name = soup.find("h1", {"class": "pdp-name"})
-            names.append(name.text if name else None)
+            if res.status_code != 200:
+                raise Exception("API failed")
 
-            # Rating
-            rating = soup.find("div", {"class": "index-overallRating"})
-            ratings.append(rating.text if rating else None)
+            data = res.json()["data"]
 
-            # Number of Ratings
-            rating_cnt = soup.find("div", {"class": "index-ratingsCount"})
-            num_ratings.append(rating_cnt.text[:-7] if rating_cnt else None)
+            names.append(data.get("name"))
 
-            # Number of Reviews
-            review_cnt = soup.find("div", {"class": "detailed-reviews-headline"})
-            num_reviews.append(review_cnt.text[18:-1] if review_cnt else None)
+            rating_info = data.get("ratings", {})
+            ratings.append(rating_info.get("averageRating"))
+            rating_counts.append(rating_info.get("totalCount"))
+            review_counts.append(rating_info.get("reviewCount"))
 
-            time.sleep(1)  # polite delay
+            time.sleep(0.5)
 
         except Exception:
             names.append(None)
             ratings.append(None)
-            num_ratings.append(None)
-            num_reviews.append(None)
+            rating_counts.append(None)
+            review_counts.append(None)
 
     df["Name"] = names
     df["Rating"] = ratings
-    df["Number of Ratings"] = num_ratings
-    df["Number of Reviews"] = num_reviews
+    df["Number of Ratings"] = rating_counts
+    df["Number of Reviews"] = review_counts
 
-    return df.drop(columns=["Myntra_url"])
+    return df
