@@ -1,11 +1,11 @@
 import pandas as pd
+import requests
 import time
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+}
 
 def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
 
@@ -13,29 +13,12 @@ def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
     df = input_df.copy()
     df["Myntra_url"] = base_url + df["Myntra ID"].astype(str)
 
-    # ---------------------------
-    # Selenium setup (INSIDE function)
-    # ---------------------------
-    chrome_options = Options()
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--window-size=1920,1080")
-
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    driver.set_page_load_timeout(30)
-
-    names = []
-    ratings = []
-    num_ratings = []
-    num_reviews = []
+    names, ratings, num_ratings, num_reviews = [], [], [], []
 
     for url in df["Myntra_url"]:
         try:
-            driver.get(url)
-            time.sleep(2)
-
-            soup = BeautifulSoup(driver.page_source, "html.parser")
+            response = requests.get(url, headers=HEADERS, timeout=20)
+            soup = BeautifulSoup(response.text, "html.parser")
 
             # Product Name
             name = soup.find("h1", {"class": "pdp-name"})
@@ -43,7 +26,7 @@ def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
 
             # Rating
             rating = soup.find("div", {"class": "index-overallRating"})
-            ratings.append(rating.div.text if rating else None)
+            ratings.append(rating.text if rating else None)
 
             # Number of Ratings
             rating_cnt = soup.find("div", {"class": "index-ratingsCount"})
@@ -53,13 +36,13 @@ def run_scraper(input_df: pd.DataFrame) -> pd.DataFrame:
             review_cnt = soup.find("div", {"class": "detailed-reviews-headline"})
             num_reviews.append(review_cnt.text[18:-1] if review_cnt else None)
 
+            time.sleep(1)  # polite delay
+
         except Exception:
             names.append(None)
             ratings.append(None)
             num_ratings.append(None)
             num_reviews.append(None)
-
-    driver.quit()
 
     df["Name"] = names
     df["Rating"] = ratings
